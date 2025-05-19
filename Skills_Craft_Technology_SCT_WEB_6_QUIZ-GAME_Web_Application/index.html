@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Modern Quiz App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background: linear-gradient(to right, #0f172a, #1e293b);
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+    .quiz-container {
+      max-width: 700px;
+      margin: 60px auto;
+      background: #1e293b;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.3);
+    }
+    .question {
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+    .option {
+      background: #334155;
+      padding: 14px;
+      margin: 12px 0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+      border: 2px solid transparent;
+    }
+    .option:hover {
+      background: #475569;
+    }
+    .option.correct {
+      background: #16a34a;
+      border-color: #22c55e;
+    }
+    .option.wrong {
+      background: #dc2626;
+      border-color: #ef4444;
+    }
+    .result {
+      display: none;
+      text-align: center;
+    }
+    .btn {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="quiz-container">
+  <h2 class="text-center mb-4">🚀 Modern Quiz App</h2>
+  <div id="quizBox">
+    <div id="questionBox" class="question mb-4"></div>
+    <div id="optionsBox" class="mb-3"></div>
+  </div>
+  <div id="resultBox" class="result">
+    <h3 class="mb-3">🎉 Quiz Finished!</h3>
+    <p id="scoreText" class="fs-5"></p>
+    <button class="btn btn-success" onclick="startQuiz()">Restart Quiz</button>
+  </div>
+</div>
+
+<script>
+  const questions = [
+    {
+      question: "HTML stands for?",
+      options: ["Hyper Tool ML", "HyperText Markup Language", "HighText Machine", "Mark Language"],
+      correct: "HyperText Markup Language"
+    },
+    {
+      question: "CSS is used for?",
+      options: ["Data Storage", "Styling Webpages", "Backend Logic", "Database Security"],
+      correct: "Styling Webpages"
+    },
+    {
+      question: "Which tag runs JavaScript?",
+      options: ["<js>", "<javascript>", "<script>", "<run>"],
+      correct: "<script>"
+    }
+  ];
+
+  let currentIndex = 0;
+  let score = 0;
+
+  const questionBox = document.getElementById('questionBox');
+  const optionsBox = document.getElementById('optionsBox');
+  const resultBox = document.getElementById('resultBox');
+  const quizBox = document.getElementById('quizBox');
+  const scoreText = document.getElementById('scoreText');
+
+  function startQuiz() {
+    currentIndex = 0;
+    score = 0;
+    resultBox.style.display = 'none';
+    quizBox.style.display = 'block';
+    showQuestion();
+  }
+
+  function showQuestion() {
+    const q = questions[currentIndex];
+    questionBox.textContent = `Q${currentIndex + 1}: ${q.question}`;
+    optionsBox.innerHTML = "";
+
+    const shuffled = [...q.options].sort(() => 0.5 - Math.random());
+    shuffled.forEach(opt => {
+      const div = document.createElement('div');
+      div.className = 'option';
+      div.textContent = opt;
+      div.onclick = () => handleAnswer(div, q.correct);
+      optionsBox.appendChild(div);
+    });
+  }
+
+  function handleAnswer(selected, correct) {
+    const all = document.querySelectorAll('.option');
+    all.forEach(opt => opt.onclick = null);
+
+    if (selected.textContent === correct) {
+      selected.classList.add('correct');
+      score++;
+      setTimeout(() => {
+        nextQuestion();
+      }, 1000); // Auto move after 1s
+    } else {
+      selected.classList.add('wrong');
+      all.forEach(opt => {
+        if (opt.textContent === correct) {
+          opt.classList.add('correct');
+        }
+      });
+    }
+  }
+
+  function nextQuestion() {
+    currentIndex++;
+    if (currentIndex < questions.length) {
+      showQuestion();
+    } else {
+      showResult();
+    }
+  }
+
+  function showResult() {
+    quizBox.style.display = 'none';
+    resultBox.style.display = 'block';
+    scoreText.textContent = `You scored ${score} out of ${questions.length}`;
+  }
+
+  window.onload = startQuiz;
+</script>
+
+</body>
+</html>
