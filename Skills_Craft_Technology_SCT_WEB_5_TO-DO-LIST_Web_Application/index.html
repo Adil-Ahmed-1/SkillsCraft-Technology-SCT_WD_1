@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Editable To-Do List with Inline Editing</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background: #f8f9fa;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .todo-container {
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 6px 20px rgb(0 0 0 / 0.1);
+    }
+    .task-completed {
+      text-decoration: line-through;
+      color: gray;
+    }
+    .due-passed {
+      color: red;
+      font-weight: bold;
+    }
+    .edit-mode input {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="todo-container">
+  <h2 class="mb-4 text-center">Editable To-Do List (Asia/Karachi Timezone)</h2>
+  <form id="todoForm" class="mb-3">
+    <div class="input-group">
+      <input
+        type="text"
+        id="taskInput"
+        class="form-control"
+        placeholder="Add new task"
+        aria-label="Task"
+        required
+      />
+      <input
+        type="datetime-local"
+        id="dueDateInput"
+        class="form-control"
+        aria-label="Due date and time"
+        required
+      />
+      <button class="btn btn-primary" type="submit">Add</button>
+    </div>
+  </form>
+
+  <ul id="todoList" class="list-group"></ul>
+</div>
+
+<script>
+  const form = document.getElementById('todoForm');
+  const taskInput = document.getElementById('taskInput');
+  const dueDateInput = document.getElementById('dueDateInput');
+  const todoList = document.getElementById('todoList');
+
+  let todos = [];
+
+  function loadTodos() {
+    const stored = localStorage.getItem('todos');
+    todos = stored ? JSON.parse(stored) : [];
+  }
+
+  function saveTodos() {
+    localStorage.setItem('todos', JSON.stringify(todos));
+  }
+
+  function formatDateTime(datetimeStr) {
+    if (!datetimeStr) return '';
+    const date = new Date(datetimeStr);
+    return date.toLocaleString('en-GB', { 
+      day: '2-digit', month: 'short', year: 'numeric', 
+      hour: '2-digit', minute: '2-digit' 
+    });
+  }
+
+  function isDuePassed(dueDate) {
+    if (!dueDate) return false;
+    const now = new Date();
+    const due = new Date(dueDate);
+    return now > due;
+  }
+
+  function setCurrentTimeInKarachi() {
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const karachiTime = new Date(utc + 5 * 3600000);
+
+    const year = karachiTime.getFullYear();
+    const month = String(karachiTime.getMonth() + 1).padStart(2, '0');
+    const day = String(karachiTime.getDate()).padStart(2, '0');
+    const hours = String(karachiTime.getHours()).padStart(2, '0');
+    const minutes = String(karachiTime.getMinutes()).padStart(2, '0');
+
+    const formatted = `${year}-${month}-${day}T${hours}:${minutes}`;
+    dueDateInput.value = formatted;
+  }
+
+  // Render todos with inline edit option
+  function renderTodos() {
+    todoList.innerHTML = '';
+    if (todos.length === 0) {
+      todoList.innerHTML = `<li class="list-group-item text-center text-muted">No tasks added yet</li>`;
+      return;
+    }
+    todos.forEach((todo, index) => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+      // Left container for checkbox + task text or input fields (edit mode)
+      const leftDiv = document.createElement('div');
+      leftDiv.className = 'd-flex align-items-center flex-grow-1';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'form-check-input me-2';
+      checkbox.checked = todo.completed;
+      checkbox.onchange = () => toggleComplete(index);
+
+      leftDiv.appendChild(checkbox);
+
+      // Check if this task is in edit mode
+      if (todo.editing) {
+        const editTextInput = document.createElement('input');
+        editTextInput.type = 'text';
+        editTextInput.value = todo.text;
+        editTextInput.className = 'form-control me-2';
+        editTextInput.style.maxWidth = '250px';
+
+        const editDueInput = document.createElement('input');
+        editDueInput.type = 'datetime-local';
+        editDueInput.value = todo.due || '';
+        editDueInput.className = 'form-control me-2';
+        editDueInput.style.maxWidth = '200px';
+
+        leftDiv.appendChild(editTextInput);
+        leftDiv.appendChild(editDueInput);
+
+        // Save button
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-success btn-sm me-2';
+        saveBtn.textContent = 'Save';
+        saveBtn.onclick = () => {
+          const newText = editTextInput.value.trim();
+          const newDue = editDueInput.value;
+
+          if (newText === '') {
+            alert('Task cannot be empty');
+            return;
+          }
+          if (!newDue) {
+            alert('Please set due date and time');
+            return;
+          }
+
+          todos[index].text = newText;
+          todos[index].due = newDue;
+          todos[index].editing = false;
+          saveTodos();
+          renderTodos();
+        };
+
+        // Cancel button
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-secondary btn-sm';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => {
+          todos[index].editing = false;
+          renderTodos();
+        };
+
+        li.appendChild(leftDiv);
+        li.appendChild(saveBtn);
+        li.appendChild(cancelBtn);
+
+      } else {
+        // Normal display mode
+        const taskText = document.createElement('span');
+        taskText.textContent = todo.text;
+        taskText.className = todo.completed ? 'task-completed' : '';
+        leftDiv.appendChild(taskText);
+
+        if (todo.due) {
+          const dueSpan = document.createElement('small');
+          dueSpan.className = 'ms-3';
+          dueSpan.textContent = `Due: ${formatDateTime(todo.due)}`;
+          if (isDuePassed(todo.due) && !todo.completed) {
+            dueSpan.classList.add('due-passed');
+          }
+          leftDiv.appendChild(dueSpan);
+        }
+
+        li.appendChild(leftDiv);
+
+        // Buttons group
+        const btnGroup = document.createElement('div');
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-outline-secondary btn-sm me-2';
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = () => {
+          todos[index].editing = true;
+          renderTodos();
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn btn-outline-danger btn-sm';
+        delBtn.textContent = 'Delete';
+        delBtn.onclick = () => {
+          if (confirm('Are you sure you want to delete this task?')) {
+            todos.splice(index, 1);
+            saveTodos();
+            renderTodos();
+          }
+        };
+
+        btnGroup.appendChild(editBtn);
+        btnGroup.appendChild(delBtn);
+        li.appendChild(btnGroup);
+      }
+
+      todoList.appendChild(li);
+    });
+  }
+
+  function toggleComplete(index) {
+    todos[index].completed = !todos[index].completed;
+    saveTodos();
+    renderTodos();
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const taskText = taskInput.value.trim();
+    const dueDate = dueDateInput.value;
+
+    if (!taskText) {
+      alert('Please enter a task!');
+      return;
+    }
+    if (!dueDate) {
+      alert('Please set due date and time!');
+      return;
+    }
+
+    todos.push({ text: taskText, completed: false, due: dueDate, editing: false });
+    saveTodos();
+    renderTodos();
+
+    taskInput.value = '';
+    setCurrentTimeInKarachi();
+    taskInput.focus();
+  });
+
+  window.onload = () => {
+    loadTodos();
+    renderTodos();
+    setCurrentTimeInKarachi();
+  };
+</script>
+
+</body>
+</html>
